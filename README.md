@@ -2,6 +2,8 @@
 
 A system that helps Small, Medium, and Micro Enterprises (SMMEs) automatically find funding, match opportunities, auto-fill applications, and track status using AI + Supabase + JavaScript.
 
+Live Demo: https://smmesfundfinder.netlify.app/
+
 🚀 1. Project Overview
 
 The AI-Powered SMME Funding Application is a web-based platform built for the Eastern Cape Hackathon 2025.
