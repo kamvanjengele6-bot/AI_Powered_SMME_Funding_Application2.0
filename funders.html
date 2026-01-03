@@ -603,7 +603,7 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
 
       // Initialize Supabase client
-      const supabase = window.supabase.createClient(
+      const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -624,7 +624,7 @@
           opportunitiesGrid.style.display = "none";
 
           // Fetch all funding opportunities with funder information
-          const { data: funding, error } = await supabase
+          const { data: funding, error } = await supabaseClient
             .from("funding")
             .select(
               `

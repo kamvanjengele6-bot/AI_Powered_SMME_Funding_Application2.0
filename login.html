@@ -797,12 +797,12 @@
 
     <script>
       // Supabase configuration
-      const SUPABASE_URL = "https://ovvvwbtexnbxzacizokr.supabase.co";
+      const SUPABASE_URL = "https://dqnmbayimyiuqfzdalox.supabase.co";
       const SUPABASE_ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxbm1iYXlpbXlpdXFmemRhbG94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5OTIwOTYsImV4cCI6MjA3MDU2ODA5Nn0.XPsThMYTgbUX4JU743QhdDwPvVMcPZ1_3OBvMMGW5o4";
 
-      // Initialize Supabase client
-      const supabase = window.supabase.createClient(
+      // ✅ DO NOT name this `supabase`
+      const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -919,7 +919,7 @@
 
         try {
           // Check if user exists
-          const { data: userData, error: userError } = await supabase
+          const { data: userData, error: userError } = await supabaseClient
             .from("users")
             .select("*")
             .eq("email", email)
@@ -984,7 +984,7 @@
 
         try {
           // Update user password in database (plain text)
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseClient
             .from("users")
             .update({
               password: newPassword, // Storing plain text password
@@ -1070,7 +1070,7 @@
 
         try {
           // Check if user exists and password matches (plain text comparison)
-          const { data: userData, error: userError } = await supabase
+          const { data: userData, error: userError } = await supabaseClient
             .from("users")
             .select("*")
             .eq("email", email)
@@ -1093,7 +1093,7 @@
           }
 
           // Update last_login timestamp
-          const { error: updateError } = await supabase
+          const { error: updateError } = await supabaseClient
             .from("users")
             .update({ last_login: new Date().toISOString() })
             .eq("id", userData.id);
@@ -1161,7 +1161,7 @@
 
         try {
           // Check if user already exists
-          const { data: existingUser, error: checkError } = await supabase
+          const { data: existingUser, error: checkError } = await supabaseClient
             .from("users")
             .select("email")
             .eq("email", email)
@@ -1172,7 +1172,7 @@
           }
 
           // Create user in database with plain text password
-          const { data: userData, error: userError } = await supabase
+          const { data: userData, error: userError } = await supabaseClient
             .from("users")
             .insert([
               {
@@ -1248,7 +1248,7 @@
       // Test function to verify database connection
       async function testConnection() {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseClient
             .from("users")
             .select("*")
             .limit(1);
