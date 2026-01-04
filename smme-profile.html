@@ -634,7 +634,7 @@
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
 
-      const supabase = window.supabase.createClient(
+      const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -671,7 +671,7 @@
         const userData = JSON.parse(localStorage.getItem("fundfinder_user"));
 
         try {
-          const { data: profile, error } = await supabase
+          const { data: profile, error } = await supabaseClient
             .from("smmes")
             .select("*")
             .eq("user_id", userData.id)
@@ -790,7 +790,7 @@
 
         try {
           // Check if profile already exists
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile } = await supabaseClient
             .from("smmes")
             .select("id")
             .eq("user_id", userData.id)
@@ -799,13 +799,13 @@
           let result;
           if (existingProfile) {
             // Update existing profile
-            result = await supabase
+            result = await supabaseClient
               .from("smmes")
               .update(formData)
               .eq("user_id", userData.id);
           } else {
             // Insert new profile
-            result = await supabase.from("smmes").insert([formData]);
+            result = await supabaseClient.from("smmes").insert([formData]);
           }
 
           if (result.error) throw result.error;

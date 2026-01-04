@@ -1,0 +1,60 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.applications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  smme_id uuid,
+  funder_id uuid,
+  funding_id uuid,
+  form_data jsonb,
+  status text DEFAULT 'Submitted'::text CHECK (status = ANY (ARRAY['Submitted'::text, 'In Review'::text, 'Approved'::text, 'Rejected'::text, 'Needs More Info'::text])),
+  submitted_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT applications_pkey PRIMARY KEY (id),
+  CONSTRAINT applications_smme_id_fkey FOREIGN KEY (smme_id) REFERENCES public.users(id),
+  CONSTRAINT applications_funder_id_fkey FOREIGN KEY (funder_id) REFERENCES public.users(id),
+  CONSTRAINT applications_funding_id_fkey FOREIGN KEY (funding_id) REFERENCES public.funding(id)
+);
+CREATE TABLE public.funding (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  funder_id uuid,
+  name text NOT NULL,
+  description text,
+  criteria jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  status text NOT NULL DEFAULT 'active'::text,
+  embedding USER-DEFINED,
+  CONSTRAINT funding_pkey PRIMARY KEY (id),
+  CONSTRAINT funding_funder_id_fkey FOREIGN KEY (funder_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.smmes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  business_name text NOT NULL,
+  owner_name text,
+  registration_number text,
+  business_sector text NOT NULL,
+  region text NOT NULL,
+  years_in_operation integer NOT NULL,
+  annual_revenue numeric,
+  number_of_employees integer,
+  business_description text NOT NULL,
+  project_description text NOT NULL,
+  fund_usage text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  profile jsonb,
+  funding_requested numeric,
+  CONSTRAINT smmes_pkey PRIMARY KEY (id),
+  CONSTRAINT smmes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  password text NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['SMME'::text, 'FUNDER'::text, 'ADMIN'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  last_login timestamp with time zone,
+  active boolean NOT NULL DEFAULT true,
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);

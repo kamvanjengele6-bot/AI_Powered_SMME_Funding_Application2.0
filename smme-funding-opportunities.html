@@ -1238,13 +1238,13 @@
 
     <script>
       // Configuration
-      const GEMINI_API_KEY = "AIzaSyCixpv02sanUBs4YqxX6p8CrMfeQeVToyg";
+      const GEMINI_API_KEY = "AIzaSyDyoOjjjl76QS_LNDFiuy1g19dxnfxbZ40";
       const SUPABASE_URL = "https://ovvvwbtexnbxzacizokr.supabase.co";
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
 
       console.log("🚀 Initializing Supabase client...");
-      const supabase = window.supabase.createClient(
+      const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -1312,18 +1312,19 @@
         try {
           // Load SMME profile with criteria AND user email
           console.log("👤 Loading SMME profile with criteria and user data...");
-          const { data: profileData, error: profileError } = await supabase
-            .from("smmes")
-            .select(
-              `
+          const { data: profileData, error: profileError } =
+            await supabaseClient
+              .from("smmes")
+              .select(
+                `
                 *,
                 users:user_id (
                     email
                 )
             `
-            )
-            .eq("user_id", userData.id)
-            .single();
+              )
+              .eq("user_id", userData.id)
+              .single();
 
           if (profileError || !profileData) {
             console.log(
@@ -1346,7 +1347,7 @@
           // Rest of your existing code for loading opportunities...
           console.log("💰 Loading funding opportunities with criteria...");
           const { data: fundingOpportunities, error: fundingError } =
-            await supabase.from("funding").select("*");
+            await supabaseClient.from("funding").select("*");
 
           if (fundingError) {
             console.error(
@@ -2675,7 +2676,7 @@ Format as a formal business letter with appropriate salutation and closing.
 
         currentFundingOpportunity = opportunity;
 
-        const { data: funder } = await supabase
+        const { data: funder } = await supabaseClient
           .from("users")
           .select("email")
           .eq("id", opportunity.funder_id)
@@ -2766,7 +2767,7 @@ Format as a formal business letter with appropriate salutation and closing.
             status: "Submitted",
           };
 
-          const { data, error } = await supabase
+          const { data, error } = await supabaseClient
             .from("applications")
             .insert([applicationRecord])
             .select();
