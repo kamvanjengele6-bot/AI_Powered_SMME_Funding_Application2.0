@@ -1006,7 +1006,7 @@
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
 
-      const supabase = window.supabase.createClient(
+      const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -1028,7 +1028,7 @@
 
         const user = JSON.parse(userData);
 
-        const { data: userRecord, error } = await supabase
+        const { data: userRecord, error } = await supabaseClient
           .from("users")
           .select("*")
           .eq("id", user.id)
@@ -1062,7 +1062,7 @@
       // Load funding opportunities from Supabase
       async function loadFundingData() {
         try {
-          const { data: funding, error } = await supabase
+          const { data: funding, error } = await supabaseClient
             .from("funding")
             .select("*")
             .order("created_at", { ascending: false });
@@ -1086,7 +1086,7 @@
       async function loadApplications() {
         try {
           // First get all applications
-          const { data: applications, error } = await supabase
+          const { data: applications, error } = await supabaseClient
             .from("applications")
             .select(
               `
@@ -1105,7 +1105,7 @@
           if (error) throw error;
 
           // Get all SMME data
-          const { data: smmes, error: smmesError } = await supabase.from(
+          const { data: smmes, error: smmesError } = await supabaseClient.from(
             "smmes"
           ).select(`
               user_id,
@@ -1118,9 +1118,8 @@
           if (smmesError) console.error("Error loading SMMEs:", smmesError);
 
           // Get all funding data
-          const { data: funding, error: fundingError } = await supabase.from(
-            "funding"
-          ).select(`
+          const { data: funding, error: fundingError } =
+            await supabaseClient.from("funding").select(`
               id,
               name,
               description,
@@ -1672,7 +1671,7 @@
       // Update application status
       async function updateApplicationStatus(applicationId, newStatus) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseClient
             .from("applications")
             .update({
               status: newStatus,
@@ -1713,7 +1712,7 @@
           };
 
           try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
               .from("funding")
               .insert([fundingData]);
 

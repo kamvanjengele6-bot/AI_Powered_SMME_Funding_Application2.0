@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FundFinder - AI-Powered Funding Opportunities</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script type="module">
+      import { GEMINI_API_KEY } from "./config.js";
+    </script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
       rel="stylesheet"
@@ -1238,7 +1242,7 @@
 
     <script>
       // Configuration
-      const GEMINI_API_KEY = "AIzaSyDyoOjjjl76QS_LNDFiuy1g19dxnfxbZ40";
+      const GEMINI_API_KEY = "AIzaSyBzaQ_nZ9V79rg1Mh5qzpRz-e2Kb1e7CNk";
       const SUPABASE_URL = "https://ovvvwbtexnbxzacizokr.supabase.co";
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
@@ -1304,7 +1308,6 @@
         console.log("✅ User authenticated:", user.email);
       }
 
-      // Update the loadProfileAndOpportunities function to include user email
       async function loadProfileAndOpportunities() {
         console.log("📊 Loading profile and opportunities...");
         const userData = JSON.parse(localStorage.getItem("fundfinder_user"));
@@ -1344,7 +1347,7 @@
 
           displayProfileCriteria(currentProfile);
 
-          // Rest of your existing code for loading opportunities...
+          // Load funding opportunities
           console.log("💰 Loading funding opportunities with criteria...");
           const { data: fundingOpportunities, error: fundingError } =
             await supabaseClient.from("funding").select("*");
@@ -1362,150 +1365,417 @@
           );
           allFundingOpportunities = fundingOpportunities;
 
-          // Use REAL AI for intelligent matching
+          // Try REAL AI matching first, with fallback to basic matching
           console.log("🤖 Starting REAL AI criteria matching...");
-          const matchingResults = await matchWithRealAI(
-            currentProfile,
-            fundingOpportunities
-          );
+          let matchingResults;
 
-          console.log("✅ REAL AI matching completed:", matchingResults);
+          try {
+            matchingResults = await matchWithRealAI(
+              currentProfile,
+              fundingOpportunities
+            );
+            console.log("✅ REAL AI matching completed");
+          } catch (aiError) {
+            console.warn("⚠️ AI matching failed, using fallback:", aiError);
+            matchingResults = await matchWithFallback(
+              currentProfile,
+              fundingOpportunities
+            );
+          }
+
           displayMatchingResults(matchingResults);
           displayOpportunities(matchingResults.matchedOpportunities);
         } catch (error) {
           console.error("❌ Error loading data:", error);
-          opportunitiesContainer.innerHTML = `
-            <div class="no-results">
-                <h3>AI Matching Unavailable</h3>
-                <p>Real AI matching is currently unavailable. Please try again later.</p>
-                <button class="btn btn-primary" onclick="location.reload()">
-                    <i class="fas fa-redo"></i> Retry AI Matching
-                </button>
-            </div>
-        `;
+          // Show basic opportunities even on error
+          displayBasicOpportunities(allFundingOpportunities.slice(0, 5));
         } finally {
           loading.style.display = "none";
           console.log("🏁 Loading complete");
         }
       }
 
-      function displayProfileCriteria(profile) {
-        console.log("📋 Displaying profile criteria...");
+      // FALLBACK MATCHING FUNCTION
+      async function matchWithFallback(profile, opportunities) {
+        console.log("🔄 Using fallback matching...");
 
-        let criteriaHTML = "";
+        const matchedOpportunities = [];
+        const processedOpportunities = opportunities.slice(0, 10); // Process max 10 for fallback
 
-        if (profile.criteria) {
-          criteriaHTML = `
-        <div class="criteria-grid">
-          ${
-            profile.criteria.sector
-              ? `
-            <div class="criteria-item">
-              <strong>Business Sector</strong>
-              <span>${profile.criteria.sector}</span>
-            </div>
-          `
-              : ""
-          }
-          
-          ${
-            profile.criteria.region
-              ? `
-            <div class="criteria-item">
-              <strong>Operating Region</strong>
-              <span>${profile.criteria.region}</span>
-            </div>
-          `
-              : ""
-          }
-          
-          ${
-            profile.criteria.funding_amount_min
-              ? `
-            <div class="criteria-item">
-              <strong>Funding Needed</strong>
-              <span>R${profile.criteria.funding_amount_min.toLocaleString()} - R${
-                  profile.criteria.funding_amount_max
-                    ? profile.criteria.funding_amount_max.toLocaleString()
-                    : "Open"
-                }</span>
-            </div>
-          `
-              : ""
-          }
-          
-          ${
-            profile.criteria.business_stage
-              ? `
-            <div class="criteria-item">
-              <strong>Business Stage</strong>
-              <span>${profile.criteria.business_stage}</span>
-            </div>
-          `
-              : ""
+        // Clear loading and show fallback message
+        loading.innerHTML = `
+          <div class="spinner"></div>
+          <p>🤖 AI matching unavailable, using fallback system...</p>
+          <p><small>Showing top ${Math.min(
+            5,
+            processedOpportunities.length
+          )} relevant opportunities</small></p>
+        `;
+
+        opportunitiesContainer.innerHTML = `
+          <div style="text-align: center; padding: 2rem; background: #fff3cd; border-radius: 8px; margin: 1rem 0;">
+            <h3><i class="fas fa-exclamation-triangle"></i> AI Matching Limited</h3>
+            <p>Real AI matching is temporarily unavailable. Showing relevant opportunities based on your criteria.</p>
+            <button class="btn btn-primary" onclick="retryAIMatching()" style="margin-top: 1rem;">
+              <i class="fas fa-redo"></i> Retry AI Matching
+            </button>
+          </div>
+          <div id="fallbackResults"></div>
+        `;
+
+        const fallbackResults = document.getElementById("fallbackResults");
+
+        for (let i = 0; i < Math.min(5, processedOpportunities.length); i++) {
+          const opportunity = processedOpportunities[i];
+          const basicScore = calculateBasicMatch(profile, opportunity);
+
+          if (basicScore >= 30) {
+            // Lower threshold for fallback
+            const fallbackOpportunity = {
+              ...opportunity,
+              matchScore: basicScore,
+              matchReasoning: generateFallbackReasoning(
+                profile,
+                opportunity,
+                basicScore
+              ),
+              aiSuggestions: generateFallbackSuggestions(),
+            };
+
+            matchedOpportunities.push(fallbackOpportunity);
+            displaySingleOpportunity(fallbackOpportunity, fallbackResults);
           }
 
-          ${
-            profile.criteria.employees
-              ? `
-            <div class="criteria-item">
-              <strong>Employees</strong>
-              <span>${profile.criteria.employees}</span>
-            </div>
-          `
-              : ""
-          }
-
-          ${
-            profile.criteria.years_in_operation
-              ? `
-            <div class="criteria-item">
-              <strong>Years in Operation</strong>
-              <span>${profile.criteria.years_in_operation}</span>
-            </div>
-          `
-              : ""
-          }
-        </div>
-      `;
-        } else {
-          criteriaHTML = `
-        <div class="criteria-grid">
-          <div class="criteria-item">
-            <strong>Business Sector</strong>
-            <span>${profile.business_sector}</span>
-          </div>
-          <div class="criteria-item">
-            <strong>Operating Region</strong>
-            <span>${profile.region}</span>
-          </div>
-          <div class="criteria-item">
-            <strong>Years in Operation</strong>
-            <span>${profile.years_in_operation} years</span>
-          </div>
-          <div class="criteria-item">
-            <strong>Business Stage</strong>
-            <span>${
-              profile.years_in_operation > 3 ? "Established" : "Growing"
-            }</span>
-          </div>
-          ${
-            profile.number_of_employees
-              ? `
-            <div class="criteria-item">
-              <strong>Employees</strong>
-              <span>${profile.number_of_employees}</span>
-            </div>
-          `
-              : ""
-          }
-        </div>
-      `;
+          // Small delay for visual effect
+          await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
-        profileCriteria.innerHTML = criteriaHTML;
+        // If no matches found with basic criteria, show some general opportunities
+        if (
+          matchedOpportunities.length === 0 &&
+          processedOpportunities.length > 0
+        ) {
+          console.log(
+            "📢 No basic matches found, showing general opportunities"
+          );
+
+          // Pick top 3 general opportunities
+          const generalOpportunities = processedOpportunities
+            .slice(0, 3)
+            .map((opp) => ({
+              ...opp,
+              matchScore: 25, // Default low score for general display
+              matchReasoning:
+                "General opportunity - may not perfectly match your criteria",
+              aiSuggestions: [
+                "Review opportunity details carefully",
+                "Consider if your business can adapt",
+                "Contact funder for clarification",
+              ],
+            }));
+
+          generalOpportunities.forEach((opp) => {
+            matchedOpportunities.push(opp);
+            displaySingleOpportunity(opp, fallbackResults);
+          });
+        }
+
+        return {
+          totalOpportunities: opportunities.length,
+          matchedCount: matchedOpportunities.length,
+          averageMatchScore:
+            matchedOpportunities.length > 0
+              ? matchedOpportunities.reduce(
+                  (sum, opp) => sum + opp.matchScore,
+                  0
+                ) / matchedOpportunities.length
+              : 0,
+          matchedOpportunities: matchedOpportunities.sort(
+            (a, b) => b.matchScore - a.matchScore
+          ),
+          isFallback: true,
+        };
       }
 
+      // BASIC MATCH CALCULATION
+      function calculateBasicMatch(profile, opportunity) {
+        let score = 0;
+        const criteria = opportunity.criteria || {};
+        const profileCriteria = profile.criteria || {};
+
+        // Sector match (30 points)
+        if (criteria.sector && profile.business_sector) {
+          if (
+            criteria.sector === profile.business_sector ||
+            criteria.sector === "any" ||
+            criteria.sector === "all"
+          ) {
+            score += 30;
+          } else if (
+            criteria.sector.includes(profile.business_sector.toLowerCase())
+          ) {
+            score += 20;
+          }
+        } else {
+          score += 15; // Partial credit if no sector specified
+        }
+
+        // Region match (25 points)
+        if (criteria.region && profile.region) {
+          if (
+            criteria.region === profile.region ||
+            criteria.region === "national" ||
+            criteria.region === "all"
+          ) {
+            score += 25;
+          } else if (criteria.region.includes(profile.region.toLowerCase())) {
+            score += 15;
+          }
+        } else {
+          score += 12; // Partial credit
+        }
+
+        // Business stage match (20 points)
+        if (criteria.business_stage && profileCriteria.business_stage) {
+          if (criteria.business_stage === profileCriteria.business_stage) {
+            score += 20;
+          }
+        } else {
+          score += 10;
+        }
+
+        // Funding amount check (15 points)
+        if (criteria.funding_amount_min && profileCriteria.funding_amount_min) {
+          if (
+            profileCriteria.funding_amount_min >= criteria.funding_amount_min &&
+            (!criteria.funding_amount_max ||
+              profileCriteria.funding_amount_min <= criteria.funding_amount_max)
+          ) {
+            score += 15;
+          }
+        } else {
+          score += 7;
+        }
+
+        // Years in operation (10 points)
+        if (criteria.years_min && profile.years_in_operation) {
+          if (profile.years_in_operation >= criteria.years_min) {
+            score += 10;
+          }
+        } else {
+          score += 5;
+        }
+
+        return Math.min(100, score);
+      }
+
+      function generateFallbackReasoning(profile, opportunity, score) {
+        const criteria = opportunity.criteria || {};
+        const reasons = [];
+
+        if (
+          criteria.sector &&
+          profile.business_sector &&
+          (criteria.sector === profile.business_sector ||
+            criteria.sector === "any")
+        ) {
+          reasons.push(`Sector match: ${profile.business_sector}`);
+        }
+
+        if (
+          criteria.region &&
+          profile.region &&
+          (criteria.region === profile.region || criteria.region === "national")
+        ) {
+          reasons.push(`Regional alignment: ${profile.region}`);
+        }
+
+        if (
+          criteria.business_stage &&
+          profile.criteria?.business_stage &&
+          criteria.business_stage === profile.criteria.business_stage
+        ) {
+          reasons.push(
+            `Business stage fit: ${profile.criteria.business_stage}`
+          );
+        }
+
+        if (reasons.length === 0) {
+          return "General opportunity - review details to assess fit";
+        }
+
+        return `Matches based on: ${reasons.join(", ")}. Score: ${score}%`;
+      }
+
+      function generateFallbackSuggestions() {
+        return [
+          "Review all opportunity requirements carefully",
+          "Consider how your business aligns with the funder's objectives",
+          "Prepare a strong application highlighting your relevant experience",
+        ];
+      }
+
+      // RETRY AI MATCHING FUNCTION
+      async function retryAIMatching() {
+        console.log("🔄 Retrying AI matching...");
+
+        const retryButton = document.querySelector(
+          'button[onclick="retryAIMatching()"]'
+        );
+        if (retryButton) {
+          retryButton.disabled = true;
+          retryButton.innerHTML =
+            '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+        }
+
+        loading.style.display = "block";
+        loading.innerHTML = `
+          <div class="spinner"></div>
+          <p>🔄 Retrying AI matching...</p>
+        `;
+
+        opportunitiesContainer.innerHTML = "";
+
+        try {
+          const matchingResults = await matchWithRealAI(
+            currentProfile,
+            allFundingOpportunities
+          );
+
+          displayMatchingResults(matchingResults);
+          displayOpportunities(matchingOpportunities);
+
+          // Show success message
+          const successAlert = document.createElement("div");
+          successAlert.className = "alert alert-success";
+          successAlert.style.cssText =
+            "margin: 1rem 0; padding: 1rem; background: #d4edda; color: #155724; border-radius: 4px;";
+          successAlert.innerHTML = `
+            <i class="fas fa-check-circle"></i> AI matching restored! Showing AI-analyzed opportunities.
+          `;
+          opportunitiesContainer.prepend(successAlert);
+        } catch (error) {
+          console.error("❌ AI retry failed:", error);
+
+          const errorAlert = document.createElement("div");
+          errorAlert.className = "alert alert-warning";
+          errorAlert.style.cssText =
+            "margin: 1rem 0; padding: 1rem; background: #fff3cd; color: #856404; border-radius: 4px;";
+          errorAlert.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> AI matching still unavailable. Continuing with fallback system.
+          `;
+          opportunitiesContainer.prepend(errorAlert);
+
+          // Fall back to basic matching
+          const fallbackResults = await matchWithFallback(
+            currentProfile,
+            allFundingOpportunities
+          );
+          displayMatchingResults(fallbackResults);
+          displayOpportunities(fallbackResults.matchedOpportunities);
+        } finally {
+          loading.style.display = "none";
+          if (retryButton) {
+            retryButton.disabled = false;
+            retryButton.innerHTML =
+              '<i class="fas fa-redo"></i> Retry AI Matching';
+          }
+        }
+      }
+
+      // BASIC OPPORTUNITIES DISPLAY (for complete failure)
+      function displayBasicOpportunities(opportunities) {
+        console.log("📄 Displaying basic opportunities:", opportunities.length);
+
+        opportunitiesContainer.innerHTML = `
+          <div style="text-align: center; padding: 2rem;">
+            <h3>📋 Available Funding Opportunities</h3>
+            <p>Showing ${opportunities.length} opportunities (AI matching unavailable)</p>
+            <button class="btn btn-primary" onclick="location.reload()" style="margin: 1rem 0;">
+              <i class="fas fa-redo"></i> Reload Page
+            </button>
+          </div>
+        `;
+
+        const opportunitiesList = document.createElement("div");
+        opportunitiesList.className = "opportunities-list";
+
+        opportunities.forEach((opportunity) => {
+          const fundingBadge = getFundingTypeBadge(opportunity);
+          const fundingIcon = getFundingTypeIcon(opportunity);
+
+          const opportunityElement = document.createElement("div");
+          opportunityElement.className = "opportunity-card";
+          opportunityElement.innerHTML = `
+            ${
+              fundingBadge
+                ? `
+              <div class="opportunity-badge ${fundingBadge.class}">
+                ${fundingBadge.label}
+              </div>
+            `
+                : ""
+            }
+            
+            <div class="opportunity-header">
+              <div class="opportunity-title">
+                <h3><i class="${fundingIcon}"></i> ${opportunity.name}</h3>
+                <p>${opportunity.description || "No description available"}</p>
+              </div>
+            </div>
+            
+            <div class="opportunity-details">
+              ${
+                opportunity.criteria?.funding_amount_min
+                  ? `
+                <div class="detail-item">
+                  <strong>Funding Range</strong>
+                  <span>R${opportunity.criteria.funding_amount_min.toLocaleString()} - R${
+                      opportunity.criteria.funding_amount_max
+                        ? opportunity.criteria.funding_amount_max.toLocaleString()
+                        : "Open"
+                    }</span>
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                opportunity.criteria?.sector
+                  ? `
+                <div class="detail-item">
+                  <strong>Sector Focus</strong>
+                  <span>${
+                    opportunity.criteria.sector.charAt(0).toUpperCase() +
+                    opportunity.criteria.sector.slice(1)
+                  }</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+            
+            <div class="opportunity-actions">
+              <button class="btn btn-secondary" onclick="viewDetails('${
+                opportunity.id
+              }')">
+                <i class="fas fa-info-circle"></i> View Details
+              </button>
+              <button class="btn btn-primary" onclick="applyForFunding('${
+                opportunity.id
+              }')">
+                <i class="fas fa-paper-plane"></i> Apply Now
+              </button>
+            </div>
+          `;
+
+          opportunitiesList.appendChild(opportunityElement);
+        });
+
+        opportunitiesContainer.appendChild(opportunitiesList);
+      }
+
+      // MODIFIED matchWithRealAI FUNCTION WITH RATE LIMITING
       async function matchWithRealAI(profile, opportunities) {
         console.log("🔍 Starting REAL AI matching with 40% threshold...");
 
@@ -1513,27 +1783,27 @@
 
         // Clear loading and show initial message
         loading.innerHTML = `
-        <div class="spinner"></div>
-        <p>🤖 AI is analyzing ${opportunities.length} funding opportunities...</p>
-        <p><small>Only showing opportunities with 40%+ match score</small></p>
-    `;
+          <div class="spinner"></div>
+          <p>🤖 AI is analyzing ${opportunities.length} funding opportunities...</p>
+          <p><small>Only showing opportunities with 40%+ match score</small></p>
+        `;
 
         // Create a container for progressive results
         opportunitiesContainer.innerHTML = `
-        <div id="progressContainer" style="text-align: center; padding: 2rem;">
+          <div id="progressContainer" style="text-align: center; padding: 2rem;">
             <h3>🤖 AI Matching in Progress</h3>
             <p>Analyzing opportunities with 40%+ match threshold...</p>
             <div id="progressStats" style="margin: 1rem 0;">
-                <div style="display: inline-block; background: #e0e7ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
-                    <strong>0</strong> / ${opportunities.length}
-                </div>
-                <div style="display: inline-block; background: #f0f9ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
-                    <strong>0</strong> matches found
-                </div>
+              <div style="display: inline-block; background: #e0e7ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+                <strong>0</strong> / ${opportunities.length}
+              </div>
+              <div style="display: inline-block; background: #f0f9ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+                <strong>0</strong> matches found
+              </div>
             </div>
-        </div>
-        <div id="liveResults"></div>
-    `;
+          </div>
+          <div id="liveResults"></div>
+        `;
 
         const progressContainer = document.getElementById("progressContainer");
         const progressStats = document.getElementById("progressStats");
@@ -1542,7 +1812,10 @@
         let processedCount = 0;
         let matchesFound = 0;
 
-        for (const opportunity of opportunities) {
+        // Process opportunities with rate limiting
+        for (let i = 0; i < opportunities.length; i++) {
+          const opportunity = opportunities[i];
+
           if (!opportunity.criteria) {
             processedCount++;
             updateProgress(processedCount, opportunities.length, matchesFound);
@@ -1550,12 +1823,16 @@
           }
 
           try {
+            // Add delay between API calls (2 seconds to avoid rate limits)
+            if (i > 0) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+
             const aiMatchResult = await getRealAIMatchAnalysis(
               profile,
               opportunity
             );
 
-            // CHANGED: Increased threshold from 20% to 40%
             if (aiMatchResult.matchScore >= 40) {
               const matchedOpportunity = {
                 ...opportunity,
@@ -1575,13 +1852,16 @@
               `❌ REAL AI matching failed for opportunity ${opportunity.id}:`,
               error
             );
+
+            // If it's a rate limit error, throw to trigger fallback
+            if (error.message && error.message.includes("429")) {
+              throw new Error("Rate limit exceeded - switching to fallback");
+            }
+
             processedCount++;
             updateProgress(processedCount, opportunities.length, matchesFound);
             continue;
           }
-
-          // Small delay to make progressive loading more visible (optional)
-          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         console.log(
@@ -1592,34 +1872,28 @@
         if (matchedOpportunities.length === 0) {
           progressContainer.innerHTML = `
             <div style="text-align: center; padding: 2rem;">
-                <h3>🤖 No Strong Matches Found</h3>
-                <p>No funding opportunities met the 40% match threshold with your business criteria.</p>
-                <p><strong>Suggestions:</strong></p>
-                <ul style="text-align: left; margin: 1rem 0; display: inline-block;">
-                    <li>Update your business profile criteria</li>
-                    <li>Consider broader sector options</li>
-                    <li>Check back later for new opportunities</li>
-                </ul>
-                <div style="margin-top: 1rem;">
-                    <a href="smme-profile.html" class="btn btn-primary">
-                        <i class="fas fa-edit"></i> Update Criteria
-                    </a>
-                    <button class="btn btn-secondary" onclick="showAllOpportunities()" style="margin-left: 0.5rem;">
-                        <i class="fas fa-eye"></i> Show All Opportunities
-                    </button>
-                </div>
+              <h3>🤖 No Strong Matches Found</h3>
+              <p>No funding opportunities met the 40% match threshold with your business criteria.</p>
+              <div style="margin-top: 1rem;">
+                <a href="smme-profile.html" class="btn btn-primary">
+                  <i class="fas fa-edit"></i> Update Criteria
+                </a>
+                <button class="btn btn-secondary" onclick="showAllOpportunities()" style="margin-left: 0.5rem;">
+                  <i class="fas fa-eye"></i> Show All Opportunities
+                </button>
+              </div>
             </div>
-        `;
+          `;
         } else {
           progressContainer.innerHTML = `
             <div style="text-align: center; padding: 1rem; background: #f0f9ff; border-radius: 8px; margin: 1rem 0;">
-                <h4>✅ AI Analysis Complete!</h4>
-                <p>Found ${matchedOpportunities.length} opportunities with 40%+ match score</p>
-                <button class="btn btn-outline" onclick="showAllOpportunities()" style="margin-top: 0.5rem;">
-                    <i class="fas fa-eye"></i> Show All Opportunities
-                </button>
+              <h4>✅ AI Analysis Complete!</h4>
+              <p>Found ${matchedOpportunities.length} opportunities with 40%+ match score</p>
+              <button class="btn btn-outline" onclick="showAllOpportunities()" style="margin-top: 0.5rem;">
+                <i class="fas fa-eye"></i> Show All Opportunities
+              </button>
             </div>
-        `;
+          `;
         }
 
         return {
@@ -1638,17 +1912,139 @@
         };
       }
 
+      // Add this to make retryAIMatching available globally
+      window.retryAIMatching = retryAIMatching;
+
+      // ... (rest of your existing functions remain the same) ...
+
+      function displayProfileCriteria(profile) {
+        console.log("📋 Displaying profile criteria...");
+
+        let criteriaHTML = "";
+
+        if (profile.criteria) {
+          criteriaHTML = `
+            <div class="criteria-grid">
+              ${
+                profile.criteria.sector
+                  ? `
+                <div class="criteria-item">
+                  <strong>Business Sector</strong>
+                  <span>${profile.criteria.sector}</span>
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                profile.criteria.region
+                  ? `
+                <div class="criteria-item">
+                  <strong>Operating Region</strong>
+                  <span>${profile.criteria.region}</span>
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                profile.criteria.funding_amount_min
+                  ? `
+                <div class="criteria-item">
+                  <strong>Funding Needed</strong>
+                  <span>R${profile.criteria.funding_amount_min.toLocaleString()} - R${
+                      profile.criteria.funding_amount_max
+                        ? profile.criteria.funding_amount_max.toLocaleString()
+                        : "Open"
+                    }</span>
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                profile.criteria.business_stage
+                  ? `
+                <div class="criteria-item">
+                  <strong>Business Stage</strong>
+                  <span>${profile.criteria.business_stage}</span>
+                </div>
+              `
+                  : ""
+              }
+
+              ${
+                profile.criteria.employees
+                  ? `
+                <div class="criteria-item">
+                  <strong>Employees</strong>
+                  <span>${profile.criteria.employees}</span>
+                </div>
+              `
+                  : ""
+              }
+
+              ${
+                profile.criteria.years_in_operation
+                  ? `
+                <div class="criteria-item">
+                  <strong>Years in Operation</strong>
+                  <span>${profile.criteria.years_in_operation}</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+        } else {
+          criteriaHTML = `
+            <div class="criteria-grid">
+              <div class="criteria-item">
+                <strong>Business Sector</strong>
+                <span>${profile.business_sector}</span>
+              </div>
+              <div class="criteria-item">
+                <strong>Operating Region</strong>
+                <span>${profile.region}</span>
+              </div>
+              <div class="criteria-item">
+                <strong>Years in Operation</strong>
+                <span>${profile.years_in_operation} years</span>
+              </div>
+              <div class="criteria-item">
+                <strong>Business Stage</strong>
+                <span>${
+                  profile.years_in_operation > 3 ? "Established" : "Growing"
+                }</span>
+              </div>
+              ${
+                profile.number_of_employees
+                  ? `
+                <div class="criteria-item">
+                  <strong>Employees</strong>
+                  <span>${profile.number_of_employees}</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+        }
+
+        profileCriteria.innerHTML = criteriaHTML;
+      }
+
       function updateProgress(processed, total, matches) {
         const progressStats = document.getElementById("progressStats");
         if (progressStats) {
           progressStats.innerHTML = `
-      <div style="display: inline-block; background: #e0e7ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
-        <strong>${processed}</strong> / ${total} processed
-      </div>
-      <div style="display: inline-block; background: #f0f9ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
-        <strong>${matches}</strong> matches found
-      </div>
-    `;
+            <div style="display: inline-block; background: #e0e7ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+              <strong>${processed}</strong> / ${total} processed
+            </div>
+            <div style="display: inline-block; background: #f0f9ff; padding: 0.5rem 1rem; border-radius: 20px; margin: 0 0.5rem;">
+              <strong>${matches}</strong> matches found
+            </div>
+          `;
         }
       }
 
@@ -2490,166 +2886,353 @@ RESPONSE FORMAT (JSON ONLY):
         uploadedFiles.forEach((file) => addFileToList(file));
       }
 
-      async function generateProjectSummary(opportunity) {
-        projectSummaryText.innerHTML = `
-  <div class="loading">
-    <div class="spinner" style="width: 20px; height: 20px;"></div>
-    <p>AI is generating your project summary...</p>
-  </div>
-`;
-
-        try {
-          const prompt = `
-Create a concise 150-200 word project summary for a funding application with these details:
-
-BUSINESS: ${currentProfile.business_name} - ${
-            currentProfile.business_sector
-          } in ${currentProfile.region}
-EXPERIENCE: ${currentProfile.years_in_operation} years in business, ${
-            currentProfile.number_of_employees || "several"
-          } employees
-PROJECT: ${currentProfile.project_description}
-FUNDING USE: ${currentProfile.fund_usage}
-OPPORTUNITY: ${opportunity.name} - ${opportunity.description}
-
-Write a professional project summary that:
-1. Clearly states the project objectives
-2. Highlights the expected outcomes and impact
-3. Shows alignment with the funding opportunity
-4. Demonstrates business capability
-5. Is concise and compelling
-
-Focus on clarity, impact, and alignment with the funding criteria.
-      `;
-
-          // Using the latest Gemini 2.0 Flash model
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    parts: [
-                      {
-                        text: prompt,
-                      },
-                    ],
+      // Add this rate-limited AI call function
+      async function makeAICallWithRetry(prompt, maxRetries = 2) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      parts: [{ text: prompt }],
+                    },
+                  ],
+                  generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 1024,
                   },
-                ],
-              }),
-            }
-          );
+                }),
+              }
+            );
 
-          if (response.ok) {
-            const data = await response.json();
-            const summary = data.candidates[0].content.parts[0].text;
-            projectSummaryText.value = summary;
-          } else {
-            throw new Error("AI API failed");
+            if (response.status === 429) {
+              if (attempt < maxRetries) {
+                const retryAfter = response.headers.get("Retry-After") || 5;
+                console.log(
+                  `⚠️ Rate limited, retrying in ${retryAfter} seconds...`
+                );
+                await new Promise((resolve) =>
+                  setTimeout(resolve, retryAfter * 1000)
+                );
+                continue;
+              }
+              throw new Error("Rate limit exceeded");
+            }
+
+            if (!response.ok) {
+              throw new Error(`API error: ${response.status}`);
+            }
+
+            return await response.json();
+          } catch (error) {
+            if (attempt === maxRetries) {
+              throw error;
+            }
           }
-        } catch (error) {
-          console.error("Error generating project summary:", error);
-          projectSummaryText.textContent =
-            "AI content generation failed. Please write your project summary manually.";
         }
       }
 
+      // Updated generateProjectSummary with fallback
+      async function generateProjectSummary(opportunity) {
+        projectSummaryText.innerHTML = `
+        <div class="loading">
+            <div class="spinner" style="width: 20px; height: 20px;"></div>
+            <p>AI is generating your project summary...</p>
+        </div>
+    `;
+
+        try {
+          const prompt = `Create a concise 150-200 word project summary...`; // Your existing prompt
+
+          const data = await makeAICallWithRetry(prompt);
+
+          if (data && data.candidates && data.candidates[0]) {
+            const summary = data.candidates[0].content.parts[0].text;
+            projectSummaryText.value = summary;
+          } else {
+            throw new Error("Invalid AI response");
+          }
+        } catch (error) {
+          console.error("❌ AI project summary failed:", error);
+
+          // FALLBACK: Show template
+          projectSummaryText.value = `Project Summary for ${currentProfile.business_name}
+
+Business: ${currentProfile.business_name}
+Sector: ${currentProfile.business_sector}
+Location: ${currentProfile.region}
+Years in Operation: ${currentProfile.years_in_operation}
+
+Project Description: ${currentProfile.project_description}
+
+Funding Purpose: ${currentProfile.fund_usage}
+
+This project aims to [describe key objectives]. We plan to achieve [expected outcomes] which will contribute to [business growth/community impact]. Our ${currentProfile.years_in_operation} years of experience in ${currentProfile.business_sector} positions us well for successful implementation.
+
+[Please customize this template with your specific project details]`;
+
+          // Show warning to user
+          const warning = document.createElement("div");
+          warning.className = "alert alert-warning";
+          warning.style.cssText =
+            "margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px;";
+          warning.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>AI generation limited:</strong> Using template. Please customize with your details.
+        `;
+          projectSummaryText.parentNode.insertBefore(
+            warning,
+            projectSummaryText
+          );
+        }
+      }
+
+      // Updated generateMotivationLetter with fallback
       async function generateMotivationLetter(opportunity) {
         motivationText.value = "AI is generating your motivation letter...";
 
         try {
-          const prompt = `
-Create a professional funding application motivation letter with these specific details:
+          const prompt = `Create a professional funding application motivation letter for a funding application with these details:`; // Your existing prompt
 
-APPLICANT INFORMATION:
-- Business Name: ${currentProfile.business_name}
-- Contact Person: ${currentProfile.owner_name || "The Management Team"}
-- Email: ${currentProfile.user_email}
-- Business Sector: ${currentProfile.business_sector}
-- Location: ${currentProfile.region}
-- Years in Operation: ${currentProfile.years_in_operation}
-- Team Size: ${
-            currentProfile.number_of_employees ||
-            "growing team of professionals"
-          }
-- Registration: ${currentProfile.registration_number || "Registered business"}
+          const data = await makeAICallWithRetry(prompt);
 
-BUSINESS BACKGROUND:
-- Experience: ${currentProfile.years_in_operation} years in business
-- Sector Expertise: ${currentProfile.business_sector}
-- Regional Presence: ${currentProfile.region}
-- Business Description: ${currentProfile.business_description}
-
-PROJECT DETAILS:
-- Project Description: ${currentProfile.project_description}
-- Funding Purpose: ${currentProfile.fund_usage}
-- Expected Impact: Job creation, economic growth, community development
-
-FUNDING OPPORTUNITY:
-- Opportunity Name: ${opportunity.name}
-- Description: ${opportunity.description}
-- Focus Areas: ${opportunity.criteria?.sector || "Various sectors"}
-- Regional Focus: ${opportunity.criteria?.region || "National"}
-
-Write a compelling 250-300 word motivation letter that:
-1. Formally introduces ${currentProfile.business_name} and ${
-            currentProfile.owner_name || "our management team"
-          }
-2. Highlights our ${currentProfile.years_in_operation} years of experience in ${
-            currentProfile.business_sector
-          }
-3. Explains how our project aligns with ${opportunity.name}'s objectives
-4. Demonstrates our capability to successfully execute the project
-5. Shows the positive impact on the ${currentProfile.region} community
-6. Includes our contact information: ${currentProfile.user_email}
-
-Use a professional, confident tone and ensure the letter is personalized with our specific business details. Focus on creating sustainable impact and long-term value.
-
-Format as a formal business letter with appropriate salutation and closing.
-        `;
-
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                contents: [
-                  {
-                    parts: [
-                      {
-                        text: prompt,
-                      },
-                    ],
-                  },
-                ],
-                generationConfig: {
-                  temperature: 0.7,
-                  maxOutputTokens: 1024,
-                },
-              }),
-            }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
+          if (data && data.candidates && data.candidates[0]) {
             const letter = data.candidates[0].content.parts[0].text;
             motivationText.value = letter;
           } else {
-            throw new Error("AI API failed");
+            throw new Error("Invalid AI response");
           }
         } catch (error) {
-          console.error("Error generating motivation letter:", error);
-          motivationText.textContent =
-            "AI content generation failed. Please write your motivation letter manually.";
+          console.error("❌ AI motivation letter failed:", error);
+
+          // FALLBACK: Show template
+          motivationText.value = `TO: The Funding Committee
+FROM: ${currentProfile.owner_name || currentProfile.business_name}
+DATE: ${new Date().toLocaleDateString()}
+SUBJECT: Application for ${opportunity.name}
+
+Dear Funding Committee,
+
+I am writing to apply for the ${opportunity.name} on behalf of ${
+            currentProfile.business_name
+          }.
+
+Our business has been operating in ${currentProfile.region} for ${
+            currentProfile.years_in_operation
+          } years, specializing in ${
+            currentProfile.business_sector
+          }. We currently employ ${
+            currentProfile.number_of_employees ||
+            "a team of dedicated professionals"
+          }.
+
+PROJECT OVERVIEW:
+${currentProfile.project_description}
+
+FUNDING PURPOSE:
+${currentProfile.fund_usage}
+
+WHY WE ARE A GOOD FIT:
+• Sector experience in ${currentProfile.business_sector}
+• Regional presence in ${currentProfile.region}
+• ${currentProfile.years_in_operation} years of operational experience
+• Commitment to sustainable growth and community impact
+
+EXPECTED OUTCOMES:
+• [Describe expected business growth]
+• [Describe community/economic impact]
+• [Describe job creation/retention]
+
+We believe this project aligns well with ${
+            opportunity.name
+          }'s objectives. Our team has the experience and dedication to ensure successful implementation.
+
+Thank you for considering our application.
+
+Sincerely,
+${currentProfile.owner_name || "The Management Team"}
+${currentProfile.business_name}
+${currentProfile.user_email || currentProfile.owner_email}`;
+
+          // Show warning
+          const warning = document.createElement("div");
+          warning.className = "alert alert-warning";
+          warning.style.cssText =
+            "margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px;";
+          warning.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>AI generation limited:</strong> Using template. Please customize with your details.
+        `;
+          motivationText.parentNode.insertBefore(warning, motivationText);
         }
       }
+      /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      //       async function generateProjectSummary(opportunity) {
+      //         projectSummaryText.innerHTML = `
+      //   <div class="loading">
+      //     <div class="spinner" style="width: 20px; height: 20px;"></div>
+      //     <p>AI is generating your project summary...</p>
+      //   </div>
+      // `;
+
+      //         try {
+      //           const prompt = `
+      // Create a concise 150-200 word project summary for a funding application with these details:
+
+      // BUSINESS: ${currentProfile.business_name} - ${
+      //             currentProfile.business_sector
+      //           } in ${currentProfile.region}
+      // EXPERIENCE: ${currentProfile.years_in_operation} years in business, ${
+      //             currentProfile.number_of_employees || "several"
+      //           } employees
+      // PROJECT: ${currentProfile.project_description}
+      // FUNDING USE: ${currentProfile.fund_usage}
+      // OPPORTUNITY: ${opportunity.name} - ${opportunity.description}
+
+      // Write a professional project summary that:
+      // 1. Clearly states the project objectives
+      // 2. Highlights the expected outcomes and impact
+      // 3. Shows alignment with the funding opportunity
+      // 4. Demonstrates business capability
+      // 5. Is concise and compelling
+
+      // Focus on clarity, impact, and alignment with the funding criteria.
+      //       `;
+
+      //           // Using the latest Gemini 2.0 Flash model
+      //           const response = await fetch(
+      //             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      //             {
+      //               method: "POST",
+      //               headers: {
+      //                 "Content-Type": "application/json",
+      //               },
+      //               body: JSON.stringify({
+      //                 contents: [
+      //                   {
+      //                     parts: [
+      //                       {
+      //                         text: prompt,
+      //                       },
+      //                     ],
+      //                   },
+      //                 ],
+      //               }),
+      //             }
+      //           );
+
+      //           if (response.ok) {
+      //             const data = await response.json();
+      //             const summary = data.candidates[0].content.parts[0].text;
+      //             projectSummaryText.value = summary;
+      //           } else {
+      //             throw new Error("AI API failed");
+      //           }
+      //         } catch (error) {
+      //           console.error("Error generating project summary:", error);
+      //           projectSummaryText.textContent =
+      //             "AI content generation failed. Please write your project summary manually.";
+      //         }
+      //       }
+
+      //       async function generateMotivationLetter(opportunity) {
+      //         motivationText.value = "AI is generating your motivation letter...";
+
+      //         try {
+      //           const prompt = `
+      // Create a professional funding application motivation letter with these specific details:
+
+      // APPLICANT INFORMATION:
+      // - Business Name: ${currentProfile.business_name}
+      // - Contact Person: ${currentProfile.owner_name || "The Management Team"}
+      // - Email: ${currentProfile.user_email}
+      // - Business Sector: ${currentProfile.business_sector}
+      // - Location: ${currentProfile.region}
+      // - Years in Operation: ${currentProfile.years_in_operation}
+      // - Team Size: ${
+      //             currentProfile.number_of_employees ||
+      //             "growing team of professionals"
+      //           }
+      // - Registration: ${currentProfile.registration_number || "Registered business"}
+
+      // BUSINESS BACKGROUND:
+      // - Experience: ${currentProfile.years_in_operation} years in business
+      // - Sector Expertise: ${currentProfile.business_sector}
+      // - Regional Presence: ${currentProfile.region}
+      // - Business Description: ${currentProfile.business_description}
+
+      // PROJECT DETAILS:
+      // - Project Description: ${currentProfile.project_description}
+      // - Funding Purpose: ${currentProfile.fund_usage}
+      // - Expected Impact: Job creation, economic growth, community development
+
+      // FUNDING OPPORTUNITY:
+      // - Opportunity Name: ${opportunity.name}
+      // - Description: ${opportunity.description}
+      // - Focus Areas: ${opportunity.criteria?.sector || "Various sectors"}
+      // - Regional Focus: ${opportunity.criteria?.region || "National"}
+
+      // Write a compelling 250-300 word motivation letter that:
+      // 1. Formally introduces ${currentProfile.business_name} and ${
+      //             currentProfile.owner_name || "our management team"
+      //           }
+      // 2. Highlights our ${currentProfile.years_in_operation} years of experience in ${
+      //             currentProfile.business_sector
+      //           }
+      // 3. Explains how our project aligns with ${opportunity.name}'s objectives
+      // 4. Demonstrates our capability to successfully execute the project
+      // 5. Shows the positive impact on the ${currentProfile.region} community
+      // 6. Includes our contact information: ${currentProfile.user_email}
+
+      // Use a professional, confident tone and ensure the letter is personalized with our specific business details. Focus on creating sustainable impact and long-term value.
+
+      // Format as a formal business letter with appropriate salutation and closing.
+      //         `;
+
+      //           const response = await fetch(
+      //             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      //             {
+      //               method: "POST",
+      //               headers: {
+      //                 "Content-Type": "application/json",
+      //               },
+      //               body: JSON.stringify({
+      //                 contents: [
+      //                   {
+      //                     parts: [
+      //                       {
+      //                         text: prompt,
+      //                       },
+      //                     ],
+      //                   },
+      //                 ],
+      //                 generationConfig: {
+      //                   temperature: 0.7,
+      //                   maxOutputTokens: 1024,
+      //                 },
+      //               }),
+      //             }
+      //           );
+
+      //           if (response.ok) {
+      //             const data = await response.json();
+      //             const letter = data.candidates[0].content.parts[0].text;
+      //             motivationText.value = letter;
+      //           } else {
+      //             throw new Error("AI API failed");
+      //           }
+      //         } catch (error) {
+      //           console.error("Error generating motivation letter:", error);
+      //           motivationText.textContent =
+      //             "AI content generation failed. Please write your motivation letter manually.";
+      //         }
+      //       }
 
       async function regenerateProjectSummary() {
         if (currentFundingOpportunity) {
@@ -2684,28 +3267,45 @@ Format as a formal business letter with appropriate salutation and closing.
 
         modalTitle.textContent = `Apply for: ${opportunity.name}`;
         applicationInfo.innerHTML = `
-      <h3>${opportunity.name}</h3>
-      <p><strong>Funder:</strong> ${funder?.email || "Unknown"}</p>
-      <p><strong>Description:</strong> ${
-        opportunity.description || "No description available"
-      }</p>
-      ${
-        opportunity.criteria?.amount_range
-          ? `<p><strong>Funding Range:</strong> ${opportunity.criteria.amount_range}</p>`
-          : ""
-      }
+        <h3>${opportunity.name}</h3>
+        <p><strong>Funder:</strong> ${funder?.email || "Unknown"}</p>
+        <p><strong>Description:</strong> ${
+          opportunity.description || "No description available"
+        }</p>
+        ${
+          opportunity.criteria?.amount_range
+            ? `<p><strong>Funding Range:</strong> ${opportunity.criteria.amount_range}</p>`
+            : ""
+        }
     `;
 
         applicationForm.reset();
         uploadedFiles = [];
         fileList.innerHTML = "";
 
-        await generateProjectSummary(opportunity);
-        await generateMotivationLetter(opportunity);
+        // Show loading state
+        projectSummaryText.value = "Preparing project summary...";
+        motivationText.value = "Preparing motivation letter...";
+
+        // Generate content with delay between API calls
+        try {
+          // First attempt project summary
+          await generateProjectSummary(opportunity);
+
+          // Wait 3 seconds before trying motivation letter
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+
+          // Then attempt motivation letter
+          await generateMotivationLetter(opportunity);
+        } catch (error) {
+          console.error("Error generating content:", error);
+          alert(
+            "Note: AI content generation had issues. Templates have been provided - please customize them."
+          );
+        }
 
         applicationModal.classList.add("active");
       }
-
       function closeApplicationModal() {
         applicationModal.classList.remove("active");
         currentFundingOpportunity = null;

@@ -1031,7 +1031,7 @@
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dnZ3YnRleG5ieHphY2l6b2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODQ5OTEsImV4cCI6MjA3OTE2MDk5MX0.Ii21cw1Iyops8Zo784P-25NKz2m-TCyJ2zWwI4V1kcE";
 
-      const supabase = window.supabase.createClient(
+      const supabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -1055,7 +1055,7 @@
         const user = JSON.parse(userData);
 
         // Check if user is FUNDER and active
-        const { data: userRecord, error } = await supabase
+        const { data: userRecord, error } = await supabaseClient
           .from("users")
           .select("*")
           .eq("id", user.id)
@@ -1090,7 +1090,7 @@
       async function loadApplicationsData() {
         try {
           // Load funder's funding opportunities
-          const { data: funding, error: fundingError } = await supabase
+          const { data: funding, error: fundingError } = await supabaseClient
             .from("funding")
             .select("*")
             .eq("funder_id", currentFunder.id);
@@ -1101,10 +1101,11 @@
           // Load applications for funder's funding opportunities
           const fundingIds = funderFunding.map((f) => f.id);
           if (fundingIds.length > 0) {
-            const { data: applications, error: appsError } = await supabase
-              .from("applications")
-              .select(
-                `
+            const { data: applications, error: appsError } =
+              await supabaseClient
+                .from("applications")
+                .select(
+                  `
           *,
           funding:funding_id (
             name,
@@ -1112,9 +1113,9 @@
             criteria
           )
         `
-              )
-              .in("funding_id", fundingIds)
-              .order("submitted_at", { ascending: false });
+                )
+                .in("funding_id", fundingIds)
+                .order("submitted_at", { ascending: false });
 
             if (!appsError && applications) {
               // Load SMME data separately for each application
@@ -1130,7 +1131,7 @@
 
                   try {
                     // Get SMME profile data
-                    const { data: smmeProfile } = await supabase
+                    const { data: smmeProfile } = await supabaseClient
                       .from("smmes")
                       .select("profile")
                       .eq("user_id", app.smme_id)
@@ -1906,7 +1907,7 @@
         }
 
         try {
-          const { error } = await supabase
+          const { error } = await supabaseClient
             .from("applications")
             .update({
               status: newStatus,
