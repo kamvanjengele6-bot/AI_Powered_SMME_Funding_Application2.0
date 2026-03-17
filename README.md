@@ -1,284 +1,140 @@
-# AI_Powered_SMME_Funding_Application
+# 🚀 AI-Powered SMME Funding Application Matcher
 
-A system that helps Small, Medium, and Micro Enterprises (SMMEs) automatically find funding, match opportunities, auto-fill applications, and track status using AI + Supabase + JavaScript.
+A full-stack web application that helps Small, Medium, and Micro Enterprises (SMMEs) discover, match, and apply for funding opportunities using AI-driven logic and automated workflows.
 
-Live Demo: https://smmesfundfinder.netlify.app/
+🔗 **Live Demo:** https://smmesfundfinder.netlify.app/
 
-🚀 1. Project Overview
+---
 
-The AI-Powered SMME Funding Application is a web-based platform built for the Eastern Cape Hackathon 2025.
-It enables:
+## 📌 Overview
 
-For SMMEs
+This system was developed for the Eastern Cape Hackathon 2025 to address the challenge of limited access to relevant funding opportunities for SMMEs.
 
-Create a business profile
+The platform enables businesses to:
 
-Upload project details
+* Discover funding opportunities tailored to their profile
+* Automatically generate application content
+* Track application progress in real-time
 
-Search funding opportunities
+Funders can:
 
-AI automatically matches your business with suitable funders
+* Manage funding programmes
+* Review applications
+* Update application statuses
 
-Auto-fill applications using AI
+---
 
-View application history
+## 🧠 Key Features
 
-Track application status (Pending → Approved → Rejected)
+### 👤 SMME Users
 
-For Funders / Agencies
+* Create and manage business profiles
+* Search and view funding opportunities
+* AI-powered matching based on business data
+* Auto-generated:
 
-Login and manage funding programmes
+  * Project summaries
+  * Motivation letters
+* Submit and track applications (Pending → Approved → Rejected)
 
-View SMME applications
+### 🏢 Funder / Agency Users
 
-Update status (Approve / Reject)
+* Create and manage funding programmes
+* Define eligibility criteria
+* Review submitted applications
+* Approve or reject applications
 
-Upload/update funding criteria
+---
 
-AI Functions
+## 🤖 AI Functionality
 
-NLP-based opportunity matching
+* NLP-based matching between SMME profiles and funding criteria
+* Intelligent ranking of funding opportunities
+* Auto-fill of application content using AI
+* Basic input correction (handling spelling variations)
+* Multi-language friendly input handling
 
-Auto-fill forms (motivation letter, project summary, etc.)
+---
 
-Smart ranking of best funding programmes
+## 🔄 AI Engine Evolution
 
-Assistance when SMME enters wrong spelling
+This project initially used Google Gemini for AI-powered matching and text generation.
 
-Multi-language input friendly
+It was later upgraded to use the OpenAI API (GPT-based NLP) to improve:
 
-🗂 2. System Users
+* Matching accuracy
+* Natural language generation quality
+* Flexibility in prompt engineering
 
-There are 2 user types:
+This reflects an iterative development approach and evaluation of AI model performance.
 
-🧑‍💼 1. SMME User
+---
 
-Creates a profile, finds funding, submits applications.
+## 🧱 Tech Stack
 
-🏢 2. Funder/Agency User
+**Frontend**
 
-Creates funding programmes, reviews applications, updates status.
+* HTML
+* CSS
+* JavaScript
 
-Stored inside the same users table, with a role:
+**Backend / Database**
 
-SMME ↠ "smme"
-FUNDER ↠ "funder"
+* Supabase (PostgreSQL)
+* RESTful API integration
 
-🧱 3. Database Schema (Supabase)
+**AI Integration**
 
-Below is your final optimized schema.
+* OpenAI API (GPT-based NLP)
 
-🔹 users Table
+**Deployment**
 
-Stores login credentials for both SMMEs and Funders.
+* Netlify (Frontend hosting)
 
-create table users (
-id uuid primary key default gen_random_uuid(),
-email text unique not null,
-password_hash text not null,
-role text check (role in ('smme','funder')) not null,
-created_at timestamptz default now(),
-updated_at timestamptz default now()
-);
+---
 
-Trigger for auto-updated timestamp:
+## 🗂 Database Design
 
-create or replace function moddatetime()
-returns trigger
-language plpgsql
-as $$
-begin
-NEW.updated_at = now();
-return NEW;
-end;
+The system uses a relational database with the following core entities:
 
-$$
-;
+* **Users** (SMME & Funder roles)
+* **SMMEs** (business profiles)
+* **Funders** (organisation profiles)
+* **Funding Opportunities** (programmes with criteria)
+* **Applications** (submitted funding requests with status tracking)
 
-create trigger update_users_timestamp
-before update on public.users
-for each row
-execute procedure moddatetime();
+Includes:
 
-🔹 smmes Table
+* Foreign key relationships
+* Role-based access structure
+* JSONB fields for flexible AI-driven matching
 
-Stores SMME business profile and project details.
+---
 
-create table smmes (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references users(id) on delete cascade,
+## ⚙️ Core Functionality
 
-    business_name text not null,
-    owner_name text,
-    registration_number text,
-    business_sector text,
-    region text,
-    years_in_operation int,
-    annual_revenue numeric,
-    number_of_employees int,
-    business_description text,
-    project_description text,
-    fund_usage text,
+* Multi-user role system (SMME & Funder)
+* AI-driven matching and ranking logic
+* Dynamic application generation
+* Real-time status tracking
+* CRUD operations across all entities
 
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
+---
 
+## 🧪 How It Works
 
-Trigger:
+1. SMME creates a profile and submits business details
+2. System retrieves available funding opportunities
+3. AI evaluates compatibility using structured criteria
+4. Opportunities are ranked and displayed
+5. User selects a programme
+6. AI generates application content
+7. Application is submitted and tracked
+8. Funder reviews and updates status
 
-create trigger update_smmes_timestamp
-before update on public.smmes
-for each row
-execute procedure moddatetime();
+---
 
-🔹 funders Table
+## 👨‍💻 Author
 
-Stores Funder/Agency profiles.
+Developed by [Kamva Njengele & Ayanda Luthuli]
 
-create table funders (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references users(id) on delete cascade,
-
-    organisation_name text not null,
-    sector_focus text,
-    region_focus text,
-    contact_person text,
-    contact_email text,
-
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
-
-
-Trigger included.
-
-🔹 funding_opportunities Table
-
-Stores all funding programmes loaded by Funders.
-
-❗ Includes AI-friendly JSONB for flexible matching.
-create table funding_opportunities (
-    id uuid primary key default gen_random_uuid(),
-    funder_id uuid references users(id),
-
-    title text not null,
-    amount_range text,
-    sector text,
-    region text,
-    requirements text,
-    description text,
-
-    -- AI flexible matching field
-    ai_criteria jsonb default '{}'::jsonb,
-
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
-
-
-Examples stored in ai_criteria:
-
-{
-  "min_amount": 50000,
-  "max_amount": 300000,
-  "required_sector": ["Agriculture", "ICT"],
-  "min_years": 1,
-  "region": "Eastern Cape"
-}
-
-🔹 applications Table
-
-Stores submitted funding applications.
-
-create table applications (
-    id uuid primary key default gen_random_uuid(),
-    smme_id uuid references users(id),
-    funding_id uuid references funding_opportunities(id),
-
-    requested_amount numeric,
-    project_summary text,
-    motivation_letter text,
-
-    status text check (status in ('pending','approved','rejected'))
-        default 'pending',
-
-    created_at timestamptz default now(),
-    updated_at timestamptz default now()
-);
-
-
-Trigger added.
-
-🧠 4. AI Workflow (Using OpenAI or LangChain)
-Step 1: SMME enters business + project details
-
-AI extracts entities like: sector, region, revenue, years, project need…
-
-Step 2: System fetches all funding opportunities from Supabase
-
-AI creates a similarity score:
-
-score = AI.compare(smme_profile, funding.ai_criteria)
-
-Step 3: Sorting & Ranking
-
-Top matches displayed first.
-
-Step 4: Auto-fill application form
-
-AI generates:
-
-Project summary
-
-Motivation letter
-
-Explanation of match reasons
-
-Estimated requested amount
-
-Step 5: Funders view applications and update status
-
-SMME sees updates instantly.
-
-🎨 5. Frontend (HTML + CSS + JavaScript)
-Main Screens
-
-Login/Register
-
-SMME Dashboard
-
-Funder Dashboard
-
-Funding Search
-
-Application Form (AI-generated)
-
-Status Tracking
-
-Funder Review Panel
-
-☁️ 6. Deployment
-
-Supabase → Database + Auth + API
-
-JS / HTML / CSS → Static hosting (Netlify / Vercel / Firebase)
-
-OpenAI API → AI Matching + Auto-fill
-
-🏁 7. Conclusion
-
-This system is light, fast, and hackathon-friendly — but still powerful enough to demonstrate:
-
-AI Matching
-
-NLP
-
-Intelligent Auto-Fill
-
-Multi-user System
-
-Real Database Structure
-
-CRUD + Status Tracking
-$$
