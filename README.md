@@ -25,6 +25,7 @@ Define eligibility criteria
 Review and update application statuses
 
 🧠 Key Features
+
 👤 SMME Users
 
 Create and manage business profiles (sector, region, revenue, etc.)
